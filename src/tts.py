@@ -33,21 +33,42 @@ def _speak_in_process_macos(args):
         engine.setProperty('rate', rate)
         engine.setProperty('volume', volume)
         
-        # 设置语音
+        # 设置语音，优先选择女声
         lang = 'zh' if any('\u4e00' <= char <= '\u9fff' for char in text) else 'en'
         voices = engine.getProperty('voices')
         
         if voices:
+            # 优先查找女声
+            female_voice = None
+            fallback_voice = None
+            
             for voice in voices:
                 voice_name = voice.name.lower() if hasattr(voice, 'name') else ''
                 voice_id = voice.id.lower() if hasattr(voice, 'id') else ''
+                gender = getattr(voice, 'gender', None)
                 
-                if lang == 'zh' and ('chinese' in voice_name or 'zh' in voice_id or 'mandarin' in voice_name):
-                    engine.setProperty('voice', voice.id)
-                    break
-                elif lang == 'en' and ('english' in voice_name or 'en' in voice_id or 'american' in voice_name):
-                    engine.setProperty('voice', voice.id)
-                    break
+                # 检查是否为目标语言
+                is_target_lang = False
+                if lang == 'zh' and ('chinese' in voice_name or 'zh' in voice_id or 'mandarin' in voice_name or 'tingting' in voice_name):
+                    is_target_lang = True
+                elif lang == 'en' and ('english' in voice_name or 'en' in voice_id or 'american' in voice_name or 'samantha' in voice_name):
+                    is_target_lang = True
+                
+                if is_target_lang:
+                    # 记录第一个匹配的语音作为备选
+                    if fallback_voice is None:
+                        fallback_voice = voice.id
+                    
+                    # 优先选择女声
+                    if gender and 'female' in str(gender).lower():
+                        female_voice = voice.id
+                        break
+            
+            # 设置语音：优先女声，否则使用备选
+            if female_voice:
+                engine.setProperty('voice', female_voice)
+            elif fallback_voice:
+                engine.setProperty('voice', fallback_voice)
         
         # 再次检查停止标志
         if stop_flag.value == 1:
@@ -214,18 +235,38 @@ class TTSEngine:
             lang = self._detect_language(text)
             voices = self.offline_engine.getProperty('voices')
             
-            # 尝试选择合适的语音
+            # 尝试选择合适的语音，优先女声
             if voices:
+                female_voice = None
+                fallback_voice = None
+                
                 for voice in voices:
                     voice_name = voice.name.lower() if hasattr(voice, 'name') else ''
                     voice_id = voice.id.lower() if hasattr(voice, 'id') else ''
+                    gender = getattr(voice, 'gender', None)
                     
-                    if lang == 'zh' and ('chinese' in voice_name or 'zh' in voice_id or 'mandarin' in voice_name):
-                        self.offline_engine.setProperty('voice', voice.id)
-                        break
-                    elif lang == 'en' and ('english' in voice_name or 'en' in voice_id or 'american' in voice_name):
-                        self.offline_engine.setProperty('voice', voice.id)
-                        break
+                    # 检查是否为目标语言
+                    is_target_lang = False
+                    if lang == 'zh' and ('chinese' in voice_name or 'zh' in voice_id or 'mandarin' in voice_name or 'tingting' in voice_name):
+                        is_target_lang = True
+                    elif lang == 'en' and ('english' in voice_name or 'en' in voice_id or 'american' in voice_name or 'samantha' in voice_name):
+                        is_target_lang = True
+                    
+                    if is_target_lang:
+                        # 记录第一个匹配的语音作为备选
+                        if fallback_voice is None:
+                            fallback_voice = voice.id
+                        
+                        # 优先选择女声
+                        if gender and 'female' in str(gender).lower():
+                            female_voice = voice.id
+                            break
+                
+                # 设置语音：优先女声，否则使用备选
+                if female_voice:
+                    self.offline_engine.setProperty('voice', female_voice)
+                elif fallback_voice:
+                    self.offline_engine.setProperty('voice', fallback_voice)
             
             self.offline_engine.say(text)
             self.offline_engine.runAndWait()
